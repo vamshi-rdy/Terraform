@@ -186,3 +186,110 @@ Feature	Terraform Support	Notes
 terraform.workspace	✅ Yes	Use in resource names, tags, locals
 Dynamic backends	❌ No	Workaround with separate backend config files per workspace
 Workspace-specific variables	✅ Yes	Use locals + maps + lookup()
+
+
+
+** IMPORT **
+
+Absolutely. Let’s walk through a complete example: how to import a manually created AWS resource into Terraform step by step, with a real Terraform .tf file example.
+
+✅ Scenario Example: Import a Manually Created AWS EC2 Instance
+
+Let’s say:
+
+You manually launched an EC2 instance via the AWS Console
+
+Its instance ID is i-0123456789abcdef0
+
+You now want to bring it under Terraform control
+
+🔧 Step-by-Step: Importing AWS Resource into Terraform
+🟢 Step 1: Create a Terraform Resource Block
+
+First, create a minimal Terraform resource block for the EC2 instance in your Terraform configuration.
+
+📄 main.tf
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "imported_ec2" {
+  # No arguments yet; Terraform will not use this to change anything yet.
+  # We'll fill in the actual attributes after importing.
+}
+
+🟢 Step 2: Initialize Terraform (if not already done)
+terraform init
+
+🟢 Step 3: Import the EC2 Instance into Terraform State
+
+Use the EC2 instance's ID from the AWS Console.
+
+terraform import aws_instance.imported_ec2 i-0123456789abcdef0
+
+
+✅ This adds the EC2 instance to your .tfstate file, so Terraform knows it exists.
+
+🟢 Step 4: Review the Imported Resource
+
+Run:
+
+terraform state show aws_instance.imported_ec2
+
+
+You’ll get output like this:
+
+# aws_instance.imported_ec2:
+resource "aws_instance" "imported_ec2" {
+  ami                          = "ami-0c55b159cbfafe1f0"
+  instance_type                = "t2.micro"
+  subnet_id                    = "subnet-abc123"
+  vpc_security_group_ids       = ["sg-0abc123"]
+  associate_public_ip_address  = true
+  key_name                     = "my-keypair"
+  tags = {
+    Name = "ManuallyCreatedEC2"
+  }
+}
+
+🟢 Step 5: Update the .tf File with Actual Attributes
+
+Now, modify your main.tf resource to match the real configuration of the instance:
+
+resource "aws_instance" "imported_ec2" {
+  ami                    = "ami-0c55b159cbfafe1f0"
+  instance_type          = "t2.micro"
+  subnet_id              = "subnet-abc123"
+  vpc_security_group_ids = ["sg-0abc123"]
+  associate_public_ip_address = true
+  key_name               = "my-keypair"
+
+  tags = {
+    Name = "ManuallyCreatedEC2"
+  }
+}
+
+🟢 Step 6: Run terraform plan to Confirm No Drift
+terraform plan
+
+
+If your .tf file matches the state and real AWS resource, the plan will show:
+
+No changes. Your infrastructure matches the configuration.
+
+✅ Success — the resource is now under Terraform management!
+
+✅ Summary Table
+Step	Command / Action	Purpose
+1	Create resource block in .tf	Define structure for imported resource
+2	terraform init	Initialize Terraform
+3	terraform import <resource> <id>	Import AWS resource into state
+4	terraform state show <resource>	View imported attributes
+5	Update .tf file	Match actual resource configuration
+6	terraform plan	Confirm sync between code and AWS
+🔁 Bonus: Import Other AWS Resources
+AWS Resource	Terraform Type	Example Command
+S3 Bucket	aws_s3_bucket	terraform import aws_s3_bucket.mybucket my-console-bucket
+IAM Role	aws_iam_role	terraform import aws_iam_role.myrole my-iam-role-name
+Security Group	aws_security_group	terraform import aws_security_group.sg sg-0123abcd
