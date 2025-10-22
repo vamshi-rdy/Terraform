@@ -189,7 +189,7 @@ Workspace-specific variables	✅ Yes	Use locals + maps + lookup()
 
 
 
-** IMPORT **
+** IMPORT FROM AWS CONSOLE **
 
 Absolutely. Let’s walk through a complete example: how to import a manually created AWS resource into Terraform step by step, with a real Terraform .tf file example.
 
@@ -293,3 +293,89 @@ AWS Resource	Terraform Type	Example Command
 S3 Bucket	aws_s3_bucket	terraform import aws_s3_bucket.mybucket my-console-bucket
 IAM Role	aws_iam_role	terraform import aws_iam_role.myrole my-iam-role-name
 Security Group	aws_security_group	terraform import aws_security_group.sg sg-0123abcd
+
+
+** Import from one module to another module ** 
+how to import or pass one module into another module in terraform
+In Terraform, modules are isolated and don't automatically share resources or outputs. However, you can pass values from one module to another using output variables and input variables — effectively "connecting" modules through the root module (your main config).
+
+✅ Goal
+
+You cannot directly "import" one module into another, but you can pass data between them like this:
+
+module A (produces output) → root module → module B (receives input)
+📌 Step-by-Step: Pass One Module's Output to Another Module
+🔹 1. Module A: Define an Output
+
+Let's say Module A creates a VPC and outputs the VPC ID.
+
+# modules/vpc/main.tf
+resource "aws_vpc" "main" {
+  cidr_block = "10.0.0.0/16"
+}
+
+output "vpc_id" {
+  value = aws_vpc.main.id
+}
+
+🔹 2. Root Module: Call Module A and Capture the Output
+# main.tf
+module "vpc" {
+  source = "./modules/vpc"
+}
+
+
+Now module.vpc.vpc_id is available in the root module.
+
+🔹 3. Module B: Accept the Input as a Variable
+
+Let's say Module B creates a subnet inside the VPC.
+
+# modules/subnet/variables.tf
+variable "vpc_id" {
+  type = string
+}
+
+# modules/subnet/main.tf
+resource "aws_subnet" "main" {
+  vpc_id     = var.vpc_id
+  cidr_block = "10.0.1.0/24"
+}
+
+🔹 4. Root Module: Pass Output from Module A to Module B
+# main.tf
+module "subnet" {
+  source = "./modules/subnet"
+  vpc_id = module.vpc.vpc_id
+}
+
+✅ Result
+
+You’ve now passed a value from Module A to Module B using the root module as a bridge.
+
+🧠 Terraform Does Not Support:
+
+❌ Importing one module directly into another
+
+❌ Calling one module inside another module like a nested function
+
+Terraform modules are intended to be self-contained and composable, and the root module acts as the orchestrator.
+
+✅ Visual Summary
+[ Module A ] ---> outputs ---> [ Root Module ] ---> inputs ---> [ Module B ]
+
+🔁 Real-World Use Case Example
+
+Module A: Creates VPC
+
+Module B: Creates subnets using VPC ID from Module A
+
+Module C: Creates EC2 instances in subnets from Module B
+
+Everything is wired through the root module, using:
+
+output in the source module
+
+input variable in the destination module
+
+module.<name>.<output> in root module
