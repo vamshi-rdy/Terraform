@@ -1,0 +1,188 @@
+Commands to Manage Workspaces
+🔹 1. Create a New Workspace
+terraform workspace new <workspace_name>
+
+
+Example:
+
+terraform workspace new dev
+
+🔹 2. List All Workspaces
+terraform workspace list
+
+
+🔹 The current workspace is marked with an asterisk (*).
+
+🔹 3. Switch to an Existing Workspace
+terraform workspace select <workspace_name>
+
+
+Example:
+
+terraform workspace select dev
+
+🔹 4. Show Current Workspace
+terraform workspace show
+
+🔹 5. Delete a Workspace
+
+(Only possible if the workspace is not currently selected)
+
+terraform workspace delete <workspace_name>
+
+⚠️ Notes
+
+The default workspace is always present.
+
+Workspaces isolate state files, not resources themselves unless your configuration (e.g., backend or resource names) accounts for the workspace name.
+
+Best practice: Use terraform.workspace in resource naming or backend configuration to fully isolate resources across workspaces.
+
+
+** 
+Great! Here’s a full example of how to use terraform.workspace in your Terraform configuration to manage isolated environments like dev, stage, and prod using workspaces.
+
+✅ Goal
+
+We'll create an S3 bucket with a name that changes based on the current workspace, so each workspace creates its own isolated resource.
+
+📁 Example: main.tf
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_s3_bucket" "example" {
+  bucket = "my-app-bucket-${terraform.workspace}"
+  acl    = "private"
+
+  tags = {
+    Environment = terraform.workspace
+  }
+}
+
+output "bucket_name" {
+  value = aws_s3_bucket.example.bucket
+}
+
+
+Steps to Use It
+1. Initialize Terraform
+terraform init
+
+2. Create and Switch to a Workspace
+terraform workspace new dev
+
+
+(or switch to an existing one)
+
+terraform workspace select dev
+
+3. Apply the Configuration
+terraform apply
+
+
+🔸 This will create an S3 bucket named my-app-bucket-dev.
+
+4. Switch to Another Workspace
+terraform workspace new prod
+terraform apply
+
+This creates a separate bucket like my-app-bucket-prod.
+
+Each workspace maintains its own state, so the dev and prod buckets won't conflict or overwrite each other.
+
+Important Notes
+
+You must ensure that resource names (like S3 buckets) are unique across workspaces, especially for global resources (S3 bucket names must be globally unique in AWS).
+
+Use terraform.workspace in tags, names, or logic to customize resources per environment.
+
+
+
+
+***
+Great — let’s extend the setup to include workspace-specific variables and show how to configure different backends per workspace if needed.
+
+🎯 Goal
+
+We'll:
+
+Use different values (e.g. tags or instance types) depending on the workspace.
+
+Optionally configure workspace-aware backends (e.g. different S3 state files per workspace).
+
+1️⃣ Workspace-Specific Variables Using locals
+
+You can use a locals block to change values based on the current workspace.
+
+🔸 Example with EC2 instance type:
+locals {
+  instance_type_map = {
+    dev     = "t2.micro"
+    staging = "t3.micro"
+    prod    = "t3.large"
+  }
+
+  instance_type = lookup(local.instance_type_map, terraform.workspace, "t2.micro")
+}
+
+resource "aws_instance" "example" {
+  ami           = "ami-0c55b159cbfafe1f0" # Use your region's latest Amazon Linux 2 AMI
+  instance_type = local.instance_type
+
+  tags = {
+    Environment = terraform.workspace
+  }
+}
+
+
+So:
+
+dev → t2.micro
+
+prod → t3.large
+
+Defaults to t2.micro if workspace not listed.
+
+2️⃣ Different Terraform State Backends per Workspace (Optional Advanced)
+⚠️ Caution
+
+Terraform does not support dynamic backends (i.e. using terraform.workspace directly in backend blocks). But you can manually separate state per workspace by using key patterns in the backend configuration.
+
+🔸 Example: backend.tf
+terraform {
+  backend "s3" {
+    bucket = "my-terraform-state-bucket"
+    key    = "env/${terraform.workspace}/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
+🚨 But this won’t work directly!
+
+Because the backend block is evaluated before any variables or functions like terraform.workspace.
+
+✅ Workaround: Use CLI Workspaces + Pre-Set Backend Files
+
+You can:
+
+Create separate backend-<workspace>.tf files for each workspace.
+
+Use them like:
+
+terraform init -backend-config=backend-dev.tf
+terraform workspace select dev
+
+📝 backend-dev.tf
+bucket = "my-terraform-state-bucket"
+key    = "env/dev/terraform.tfstate"
+region = "us-east-1"
+
+
+Repeat for backend-prod.tf, backend-staging.tf, etc.
+
+✅ Summary
+Feature	Terraform Support	Notes
+terraform.workspace	✅ Yes	Use in resource names, tags, locals
+Dynamic backends	❌ No	Workaround with separate backend config files per workspace
+Workspace-specific variables	✅ Yes	Use locals + maps + lookup()
