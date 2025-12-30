@@ -1097,3 +1097,477 @@ Often, you'll use both together:
 terraform import to add a resource to state.
 
 terraform refresh (or plan) to ensure state reflects the real infrastructure.
+
+** How does terraform handle state locking , and what happens if the lock is lost mid-apply ?  **
+Terraform state locking is a safety mechanism to prevent concurrent operations from corrupting the same state file. Here’s how it works and what really happens if a lock disappears during an apply.
+
+How Terraform handles state locking
+1. When locking happens
+
+Terraform automatically attempts to acquire a lock when you run commands that can modify state, such as:
+
+terraform apply
+
+terraform plan -out=...
+
+terraform destroy
+
+terraform import
+
+Read-only commands like terraform plan (without -out) usually do not lock.
+
+2. Where the lock lives (backend-dependent)
+
+Locking is implemented by the backend, not Terraform Core itself:
+
+Backend	Locking mechanism
+Local	OS-level file lock on terraform.tfstate
+S3	DynamoDB table (recommended)
+AzureRM	Azure Blob Lease
+GCS	Object preconditions
+Terraform Cloud / Enterprise	Remote lock service
+
+If a backend does not support locking, Terraform will warn you.
+
+3. What’s in a lock
+
+A lock record typically contains:
+
+Operation type (apply, destroy)
+
+Who holds the lock (user / hostname)
+
+Terraform version
+
+Timestamp
+
+This helps with troubleshooting and safe recovery.
+
+What happens if the lock is lost mid-apply?
+
+This is rare but important to understand.
+
+Scenario 1: Lock is lost, but the apply continues
+
+Examples:
+
+Network interruption
+
+Backend service hiccup
+
+Lock TTL expires (some backends)
+
+What Terraform does:
+
+Terraform keeps running the apply
+
+It does not immediately stop or roll back
+
+Resources may continue to be created, updated, or destroyed
+
+Risk:
+Another user or CI job could start a new apply at the same time, leading to:
+
+State corruption
+
+Duplicate resources
+
+Conflicting updates
+
+Scenario 2: Terraform process crashes after resources were changed
+
+If Terraform crashes or is killed:
+
+Some infrastructure changes may already exist
+
+State may be partially updated or not updated at all
+
+This results in state drift:
+
+Real infrastructure ≠ Terraform state
+
+Is Terraform “transactional”?
+
+No.
+
+Terraform does not provide atomic or rollback-style transactions:
+
+It applies changes incrementally
+
+There is no automatic undo if something fails
+
+State updates happen as resources succeed
+
+How Terraform tries to protect you
+
+State is written incrementally after successful resource operations
+
+Failed resources are not recorded as successful
+
+Providers attempt idempotent operations where possible
+
+Still, lost locks are considered a dangerous condition.
+
+What to do if a lock is lost or stuck
+1. First: verify no apply is running
+
+Check:
+
+CI jobs
+
+Other users
+
+Terraform Cloud runs
+
+Cloud provider activity logs
+
+2. If the lock is stuck
+
+Use:
+
+terraform force-unlock <LOCK_ID>
+
+
+⚠️ Only do this if you are 100% sure no apply is running.
+
+3. After a mid-apply failure
+
+Run:
+
+terraform plan
+
+
+Possible outcomes:
+
+Terraform detects drift and wants to fix it
+
+Terraform wants to recreate resources that already exist
+
+Terraform wants to destroy partially-created resources
+
+You may need:
+
+terraform import
+
+terraform state rm
+
+Manual provider cleanup (last resort)
+
+Best practices to avoid lock problems
+
+Always use a backend with locking
+
+For S3: enable DynamoDB locking
+
+Avoid -lock=false (almost never safe)
+
+Run Terraform from CI/CD, not multiple laptops
+
+Keep applies short and well-scoped
+
+Monitor backend availability
+
+TL;DR
+
+Terraform locks state to prevent concurrent writes
+
+Locking is backend-specific
+
+If a lock is lost mid-apply, Terraform does not stop
+
+Concurrent applies can corrupt state
+
+Recovery usually involves plan, import, or manual cleanup
+
+If you want, I can walk through a real-world failure scenario (like S3 + DynamoDB) and show exactly how to recover safely.
+
+Great — here’s a concrete, real-world walkthrough using the most common setup:
+
+Terraform backend: S3 + DynamoDB state locking
+
+I’ll show:
+
+Normal locking behavior
+
+How the lock gets lost mid-apply
+
+What breaks
+
+Safe recovery steps (what to do and not do)
+
+1. Normal flow (what should happen)
+Backend config
+backend "s3" {
+  bucket         = "tf-state-prod"
+  key            = "network/terraform.tfstate"
+  region         = "us-east-1"
+  dynamodb_table = "terraform-locks"
+}
+
+Apply starts
+terraform apply
+
+
+Terraform:
+
+Writes a lock item to DynamoDB
+
+Reads current state from S3
+
+Computes the plan
+
+Starts creating resources
+
+Updates state in S3 as each resource succeeds
+
+Removes the lock at the end
+
+✅ Safe and serialized.
+
+2. How a lock gets lost mid-apply
+Common causes
+
+Network interruption between Terraform and DynamoDB
+
+CI runner crashes or is evicted
+
+DynamoDB table misconfigured (TTL enabled ❌)
+
+Manual deletion of the lock item
+
+IAM permission issue during apply
+
+Let’s walk through the dangerous one.
+
+3. Failure scenario: lock lost, apply still running
+Timeline
+
+T0
+
+terraform apply
+
+
+Lock acquired in DynamoDB
+
+Apply begins
+
+T1
+Terraform creates:
+
+VPC ✅
+
+Subnets ✅
+
+Security groups ✅
+
+State is being written incrementally to S3.
+
+T2 – Problem
+
+Network glitch
+
+DynamoDB lock item disappears
+
+Terraform does NOT stop
+
+Terraform:
+
+Keeps applying
+
+Still modifying infrastructure
+
+Still writing state updates
+
+⚠️ Terraform does not re-check the lock continuously
+
+T3 – Second apply starts
+Another engineer or CI job runs:
+
+terraform apply
+
+
+Since the lock is gone:
+
+Terraform successfully acquires a new lock
+
+Reads state (which may be partially updated)
+
+Now you have two applies running concurrently.
+
+4. What can break (real consequences)
+Example outcomes
+Duplicate resources
+
+Two load balancers created
+
+Two IAM roles with different names
+
+One referenced, one orphaned
+
+State corruption
+
+Apply A creates resource
+
+Apply B doesn’t see it in state
+
+Apply B tries to create it again → error or duplicate
+
+Partial failures
+
+Resources exist in AWS
+
+Terraform state doesn’t know about them
+
+This is how teams end up with:
+
+“Terraform wants to recreate everything”
+
+“Resource already exists” errors
+
+Manual cleanup emergencies
+
+5. Terraform crashes after resources were created
+
+Now suppose:
+
+Apply A crashes
+
+Lock is gone
+
+Infrastructure was partially created
+
+State is incomplete
+
+At this point:
+
+Terraform has no memory of what succeeded
+
+AWS does
+
+This is called state drift.
+
+6. Safe recovery procedure (step-by-step)
+Step 1: STOP all applies
+
+Cancel CI jobs
+
+Tell teammates to pause
+
+Do not run apply yet
+
+Step 2: Inspect the lock table
+
+Check DynamoDB:
+
+Is there a lock?
+
+Is anyone actively applying?
+
+If no apply is running, proceed.
+
+Step 3: Force unlock (only if safe)
+terraform force-unlock <LOCK_ID>
+
+
+⚠️ Never do this if an apply might still be running.
+
+Step 4: Run a plan
+terraform plan
+
+
+Now Terraform will show one of these:
+
+Case A: Drift detected
+
+Terraform wants to:
+
+Recreate resources that already exist
+
+Destroy things it thinks are wrong
+
+✅ This is normal after a failed apply.
+
+Step 5: Fix state vs reality
+
+You have 3 main tools:
+
+1️⃣ Import existing resources
+terraform import aws_lb.app alb-123456
+
+
+Use when:
+
+Resource exists
+
+Terraform wants to recreate it
+
+2️⃣ Remove broken state entries
+terraform state rm aws_instance.bad
+
+
+Use when:
+
+State references something that no longer exists
+
+3️⃣ Manual cleanup (last resort)
+
+Only if:
+
+Resource is junk
+
+Not referenced elsewhere
+
+Safe to delete
+
+Step 6: Re-plan and apply
+terraform plan
+terraform apply
+
+
+At this point:
+
+State and reality should converge again
+
+7. What not to do
+
+❌ Don’t rerun apply immediately
+❌ Don’t use -lock=false
+❌ Don’t delete the state file
+❌ Don’t guess — always plan first
+
+8. How to prevent this in production
+Critical best practices
+
+Never enable TTL on the DynamoDB lock table
+
+One apply at a time (CI enforced)
+
+Terraform Cloud or Enterprise if possible
+
+Short applies (small modules)
+
+Separate state per environment
+
+Monitoring on failed CI applies
+
+Key takeaway
+
+Terraform locking is best-effort protection, not a transaction system.
+
+If a lock is lost mid-apply:
+
+Terraform keeps going
+
+You can get concurrent applies
+
+Recovery is possible, but requires care
+
+If you want, I can:
+
+Show a DynamoDB lock table schema
+
+Walk through Terraform Cloud behavior
+
+Explain why TTL on locks is dangerous
+
+Simulate a recovery decision tree
