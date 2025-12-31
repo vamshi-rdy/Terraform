@@ -1,4 +1,4 @@
-Commands to Manage Workspaces
+(A) Commands to Manage Workspaces
 🔹 1. Create a New Workspace
 terraform workspace new <workspace_name>
 
@@ -189,7 +189,7 @@ Workspace-specific variables	✅ Yes	Use locals + maps + lookup()
 
 
 
-** IMPORT FROM AWS CONSOLE **
+(B) ** IMPORT FROM AWS CONSOLE **
 
 Absolutely. Let’s walk through a complete example: how to import a manually created AWS resource into Terraform step by step, with a real Terraform .tf file example.
 
@@ -406,10 +406,11 @@ Example:
 
 terraform import aws_instance.my_instance i-0abcd1234efgh5678
 
-
 This tells Terraform: “The EC2 instance with ID i-0abcd1234efgh5678 should now be managed as aws_instance.my_instance.”
 
-🔧 terraform taint
+
+
+(C) ** terraform taint **
 
 Purpose:
 To mark a resource for destruction and recreation on the next terraform apply.
@@ -439,7 +440,7 @@ Common Use Case	Adopting existing infra into Terraform management	Replacing a br
 
 
 **
-how do you manage secrets in terraform without hardcoding them ?
+(D) how do you manage secrets in terraform without hardcoding them ? **
 Great question! Managing secrets securely in Terraform is critical to protecting your infrastructure. Hardcoding secrets in Terraform files (like .tf or .tfvars) is strongly discouraged.
 
 Here are the best and most secure ways to manage secrets in Terraform without hardcoding them:
@@ -538,7 +539,9 @@ This prevents the value from being shown in terraform plan or terraform apply ou
 Use your CI/CD pipeline's secrets store (e.g., GitHub Actions Secrets, GitLab CI, CircleCI, etc.) to inject environment variables or terraform.tfvars securely at runtime.
 
 
-** Count vs for_each **
+
+
+(E) ** Count vs for_each **
 
 ✅ Terraform count vs for_each
 🔢 count
@@ -694,7 +697,7 @@ Want resource stability on changes	for_each
 Want simpler iteration	count
 
 
-** how do you handle drift detection in terraform ? **
+(F) ** how do you handle drift detection in terraform ? **
 Great question — drift detection is an essential part of managing infrastructure with Terraform.
 
 🔍 What is Drift?
@@ -817,7 +820,10 @@ Terraform Cloud	✅ Yes (Auto)	❌ No	Detects and alerts, but doesn't apply
 Scheduled CI/CD Plan	✅ Yes	❌ No	Great for automation
 IAM / Cloud Auditing	❌ Preventative	❌ No	Helps prevent but doesn’t detect
 
-** terraform refresh vs terraform plan **
+
+
+
+(G) ** terraform refresh vs terraform plan **
 Great question! While terraform refresh and terraform plan may seem similar because both involve checking the real state of infrastructure, they serve different purposes in Terraform workflows.
 
 🆚 terraform refresh vs terraform plan
@@ -1098,6 +1104,8 @@ terraform import to add a resource to state.
 
 terraform refresh (or plan) to ensure state reflects the real infrastructure.
 
+
+**
 ** How does terraform handle state locking , and what happens if the lock is lost mid-apply ?  **
 Terraform state locking is a safety mechanism to prevent concurrent operations from corrupting the same state file. Here’s how it works and what really happens if a lock disappears during an apply.
 
