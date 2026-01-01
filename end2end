@@ -1,5 +1,7 @@
 Day-1 | Terraform Zero to Hero | Getting Started with Terraform | #abhishekveeramalla #terraform - https://www.youtube.com/watch?v=fgp-t5SqQmM&list=PLdpzxOOAlwvI0O4PeKVV1-yJoX2AqIWuf
 https://github.com/iam-veeramalla/terraform-zero-to-hero
+Terraform state locking using DynamoDB(LockID) and S3 Bucket - Part 14 : https://www.youtube.com/watch?v=MxdvSgoWK7E
+Terraform state file | How to manage local statefile | How to save remote statefile on AWS S3 Bucket : https://www.youtube.com/watch?v=LzWBPIgbrXM
 Terraform : Destroy specific resource : https://www.youtube.com/watch?v=gfujpFlpiuU
 Day-24 | TERRAFORM WITH AWS PROJECT | ‪@cloudchamp‬ | AWS REAL TIME PROJECT #aws : https://www.youtube.com/watch?v=Koabqyopqns
 AWS Terraform Infra.jpg (AWS VPC - Terraform Template) - https://github.com/iam-veeramalla/aws-devops-zero-to-hero/blob/main/day-24/main.tf
