@@ -824,6 +824,9 @@ IAM / Cloud Auditing	❌ Preventative	❌ No	Helps prevent but doesn’t detect
 
 
 (G) ** terraform refresh vs terraform plan **
+Since Terraform 0.15+, terraform refresh is mostly replaced by this command: " terraform plan -refresh-only "
+(which is safer and shows a diff)
+
 Great question! While terraform refresh and terraform plan may seem similar because both involve checking the real state of infrastructure, they serve different purposes in Terraform workflows.
 
 🆚 terraform refresh vs terraform plan
