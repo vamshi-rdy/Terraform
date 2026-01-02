@@ -714,7 +714,7 @@ A setting is modified via an API or CLI.
 
 🧰 How to Handle Drift Detection in Terraform
 ✅ 1. Run terraform plan regularly
-terraform plan
+terraform plan -refresh-only (Since Terraform 0.15+, terraform refresh is mostly replaced by this command, which is safer and shows a diff)
 
 
 Terraform compares the actual infrastructure with the Terraform state.
