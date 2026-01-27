@@ -11,3 +11,5 @@ Lab #1: Terraform Introduction | Terraform Tutorial for Beginners | Terraform fo
 https://spacelift.io/blog/terraform-map-variable
 Create EKS Cluster with VPC using Terraform | Real Time Terraform Modules Implementation - https://www.youtube.com/watch?v=_BTpd2oYafM&t=1699s
 Create EKS Cluster with VPC using Terraform | Real Time Terraform Modules Implementation (Terraform Template) - https://github.com/iam-veeramalla/terraform-eks
+Terraform vpc infra - https://github.com/iam-veeramalla/aws-devops-zero-to-hero/blob/main/day-24/main.tf
+Terraform eks - https://www.coachdevops.com/2022/08/create-amazon-eks-cluster-by-terraform.html
