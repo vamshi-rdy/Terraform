@@ -2,6 +2,7 @@ Day-1 | Terraform Zero to Hero | Getting Started with Terraform | #abhishekveera
 https://github.com/iam-veeramalla/terraform-zero-to-hero
 Terraform state locking using DynamoDB(LockID) and S3 Bucket - Part 14 (Rahul Wagh): https://www.youtube.com/watch?v=MxdvSgoWK7E
 Terraform state file | How to manage local statefile | How to save remote statefile on AWS S3 Bucket (Rahul Wagh) : https://www.youtube.com/watch?v=LzWBPIgbrXM
+4/30 - Terraform State file management with AWS S3 | Remote Backend (Piyush) - https://www.youtube.com/watch?v=YsEdrl9O5os
 Day-4 | Terraform State DeepDive | Remote Backend | State Locking #abhishekveeramalla #terraform : https://www.youtube.com/watch?v=UhNpn7lVRBY
 Terraform workspace | How to handle Terraform Workspaces - Part 11 (Rahul Wagh) : https://www.youtube.com/watch?v=mZhRxxg9WwE&t=506s
 Terraform : Destroy specific resource : https://www.youtube.com/watch?v=gfujpFlpiuU
